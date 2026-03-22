@@ -1,0 +1,15 @@
+[Unit]
+Description=Sonar Telegram Listener
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/sonar
+ExecStart=/root/sonar/venv/bin/python sonar.py
+Restart=on-failure
+RestartSec=10
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
