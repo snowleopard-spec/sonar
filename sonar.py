@@ -90,7 +90,7 @@ async def handler(event):
 
     subject = "Echo"
 
-    decrypt_url = "http://161.35.122.12/decrypt.html"
+    decrypt_url = "http://161.35.122.12:8080/decrypt.html"
 
     if CIPHER_KEY:
         encrypted = encrypt_name(sender_name, CIPHER_KEY)
