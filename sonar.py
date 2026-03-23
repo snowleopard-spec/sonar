@@ -35,17 +35,17 @@ log = logging.getLogger("sonar")
 client = TelegramClient("sonar_session", API_ID, API_HASH)
 
 
-def send_email(subject: str, body: str) -> None:
+def send_email(subject: str, html_body: str) -> None:
     """Send an alert email via Resend."""
     try:
         resp = requests.post(
             "https://api.resend.com/emails",
             headers={"Authorization": f"Bearer {RESEND_API_KEY}"},
             json={
-                "from": ALERT_FROM,
+                "from": f"Sonar <{ALERT_FROM}>",
                 "to": [ALERT_TO],
                 "subject": subject,
-                "text": body,
+                "html": html_body,
             },
             timeout=10,
         )
@@ -88,13 +88,15 @@ async def handler(event):
 
     log.info(f"Alert triggered — private message from user ID {sender.id}")
 
-    subject = "Sonar — New Message"
+    subject = "Echo"
+
+    decrypt_url = "http://161.35.122.12/decrypt.html"
 
     if CIPHER_KEY:
         encrypted = encrypt_name(sender_name, CIPHER_KEY)
-        body = f"From: {encrypted}"
+        body = f'{encrypted}<br><br><a href="{decrypt_url}">Authenticate</a>'
     else:
-        body = "You have a new private message on Telegram."
+        body = f'You have a new private message on Telegram.<br><br><a href="{decrypt_url}">Authenticate</a>'
 
     send_email(subject, body)
 
