@@ -6,6 +6,8 @@ Monitors incoming private messages from real users and sends email alerts via Re
 import os
 import sys
 import logging
+import time
+from datetime import datetime, timezone, timedelta
 from telethon import TelegramClient, events
 from telethon.tl.types import MessageService, User
 from dotenv import load_dotenv
@@ -23,6 +25,15 @@ ALERT_TO = os.getenv("ALERT_TO_EMAIL")
 ALERT_FROM = os.getenv("ALERT_FROM_EMAIL")
 CIPHER_KEY = os.getenv("CIPHER_PASSPHRASE", "")
 
+# --- Rate limiting ---
+COOLDOWN_SECONDS = 600          # 10 minutes between emails
+DAILY_LIMIT = 10                # Max emails per day
+SGT = timezone(timedelta(hours=8))
+
+_last_email_time = 0.0          # Timestamp of last email sent
+_daily_count = 0                # Emails sent since last reset
+_daily_reset_date = None        # The SGT date the counter applies to
+
 # --- Logging ---
 logging.basicConfig(
     level=logging.INFO,
@@ -35,8 +46,47 @@ log = logging.getLogger("sonar")
 client = TelegramClient("sonar_session", API_ID, API_HASH)
 
 
+def _check_daily_reset() -> None:
+    """Reset the daily counter if we've passed 7 AM SGT."""
+    global _daily_count, _daily_reset_date
+    now_sgt = datetime.now(SGT)
+    # The "alert day" starts at 7 AM SGT
+    if now_sgt.hour >= 7:
+        current_day = now_sgt.date()
+    else:
+        current_day = now_sgt.date() - timedelta(days=1)
+
+    if _daily_reset_date != current_day:
+        _daily_count = 0
+        _daily_reset_date = current_day
+        log.info(f"Daily email counter reset for {current_day}.")
+
+
+def can_send_email() -> bool:
+    """Check both cooldown and daily limit."""
+    global _last_email_time
+    _check_daily_reset()
+
+    now = time.time()
+
+    # Check cooldown
+    elapsed = now - _last_email_time
+    if elapsed < COOLDOWN_SECONDS:
+        remaining = int(COOLDOWN_SECONDS - elapsed)
+        log.info(f"Cooldown active — {remaining}s remaining. Email suppressed.")
+        return False
+
+    # Check daily limit
+    if _daily_count >= DAILY_LIMIT:
+        log.info(f"Daily limit reached ({DAILY_LIMIT}). Email suppressed.")
+        return False
+
+    return True
+
+
 def send_email(subject: str, html_body: str) -> None:
     """Send an alert email via Resend."""
+    global _last_email_time, _daily_count
     try:
         resp = requests.post(
             "https://api.resend.com/emails",
@@ -50,7 +100,9 @@ def send_email(subject: str, html_body: str) -> None:
             timeout=10,
         )
         resp.raise_for_status()
-        log.info("Email sent successfully.")
+        _last_email_time = time.time()
+        _daily_count += 1
+        log.info(f"Email sent successfully. ({_daily_count}/{DAILY_LIMIT} today)")
     except Exception as e:
         log.error(f"Failed to send email: {e}")
 
@@ -87,6 +139,10 @@ async def handler(event):
     sender_name = sender_name.strip() or "Unknown"
 
     log.info(f"Alert triggered — private message from user ID {sender.id}")
+
+    # Check rate limits before sending
+    if not can_send_email():
+        return
 
     subject = "Echo"
 
