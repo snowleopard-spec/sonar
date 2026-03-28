@@ -47,7 +47,7 @@ async def check_telegram_session() -> tuple[bool, str]:
             return False, "Session not authorized"
         # Lightweight API call to confirm connectivity
         me = await client.get_me()
-        return True, f"Connected as {me.first_name} (ID {me.id})"
+        return True, "Session active"
     except RPCError as e:
         return False, f"Telegram RPC error: {e}"
     except Exception as e:
@@ -62,7 +62,7 @@ def send_email(subject: str, body: str) -> None:
         "https://api.resend.com/emails",
         headers={"Authorization": f"Bearer {RESEND_API_KEY}"},
         json={
-            "from": ALERT_FROM,
+            "from": f"Sonar <{ALERT_FROM}>",
             "to": [ALERT_TO],
             "subject": subject,
             "text": body,
