@@ -77,7 +77,7 @@ async def main():
 
     # --- Run checks ---
     svc_ok, svc_detail = check_service_active()
-    tg_ok, tg_detail = check_telegram_session()
+    tg_ok, tg_detail = await check_telegram_session()
 
     all_ok = svc_ok and tg_ok
 
