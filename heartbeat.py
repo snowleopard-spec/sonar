@@ -84,7 +84,7 @@ async def main():
     # --- Build report ---
     checks = [
         f"  Service (systemd):  {'OK' if svc_ok else 'FAIL'} — {svc_detail}",
-        f"  Telegram session:   {'OK' if tg_ok else 'FAIL'} — {tg_detail}",
+        f"  Communication session:   {'OK' if tg_ok else 'FAIL'} — {tg_detail}",
     ]
     report = "\n".join(checks)
 
