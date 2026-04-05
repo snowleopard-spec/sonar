@@ -50,18 +50,22 @@
   <div class="result" id="result"></div>
 </div>
 <script>
-function decrypt() {
+async function decrypt() {
   const cipher = document.getElementById('cipher').value.trim();
   const key = document.getElementById('key').value;
   const el = document.getElementById('result');
   if (!cipher || !key) { el.textContent = ''; return; }
   try {
+    // SHA-256 the passphrase to derive key bytes
+    const keyBytes = new Uint8Array(
+      await crypto.subtle.digest('SHA-256', new TextEncoder().encode(key))
+    );
     // URL-safe Base64 → standard Base64
     const std = cipher.replace(/-/g, '+').replace(/_/g, '/');
     const bytes = Uint8Array.from(atob(std), c => c.charCodeAt(0));
     let out = '';
     for (let i = 0; i < bytes.length; i++) {
-      out += String.fromCharCode(bytes[i] ^ key.charCodeAt(i % key.length));
+      out += String.fromCharCode(bytes[i] ^ keyBytes[i % keyBytes.length]);
     }
     el.textContent = out;
   } catch (e) {
